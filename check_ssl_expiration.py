@@ -43,12 +43,13 @@ def ssl_expiry_datetime(hostname):
 
     conn.connect((hostname, 443))
     ssl_info = conn.getpeercert()
+    # parse the string from the certificate into a Python datetime object
     return datetime.datetime.strptime(ssl_info['notAfter'], ssl_date_fmt)
 
-def ssl_remaining_days(hostname):
+def ssl_valid_time_remaining(hostname):
     expires = ssl_expiry_datetime(hostname)
     logger.debug(
-        "SSL cert for %s expires in %s days",
+        "SSL cert for %s expires at %s",
         hostname, expires.isoformat()
     )
     return expires - datetime.datetime.utcnow()
@@ -58,7 +59,7 @@ def ssl_expires_in(hostname, buffer_days=14):
 
     Raises `AlreadyExpired` if the cert is past due
     """
-    remaining = ssl_remaining_days(hostname)
+    remaining = ssl_valid_time_remaining(hostname)
 
     # if the cert expires in less than two weeks, we should reissue it
     if remaining < datetime.timedelta(days=0):
