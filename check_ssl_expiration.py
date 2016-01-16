@@ -81,7 +81,6 @@ def check_domain(domain, buffer_days=14):
             "cert_status": "unknown",
             "message": traceback.format_exc()
         }
-        return message
 
 def lambda_handler(event, context):
     custom_ssl_methods = ['sni-only', 'vip']
