@@ -100,20 +100,22 @@ def check_domain(domain, buffer_days=14):
         }
 
 def lambda_handler(event, context):
-    custom_ssl_methods = ['sni-only', 'vip']
     results = []
     for dist in cloudfront.list_distributions()['DistributionList']['Items']:
-        if (dist['ViewerCertificate'] and
-                dist['ViewerCertificate'].get('SSLSupportMethod') in custom_ssl_methods):
-            # then this distribution uses custom SSL, so we should worry about expiration
-            domain = dist['Aliases']['Items'][0]
-            result = check_domain(domain, event.get('buffer_days', 14))
-            results.append(result)
-            logger.debug("Got result %s for domain %s" % (json.dumps(result), domain))
-            if result['cert_status'] != 'OK' and event.get('topic', False):
-                # If cert expires soon and we have a notification topic
-                sns.publish(
-                    TopicArn=event['topic'],
-                    Message=json.dumps(result)
-                )
+        if dist.get('ViewerCertificate', {}).get('CloudFrontDefaultCertificate', False):
+            # this distribution uses default cloudfront SSL
+            # so we aren't in charge of renewing it
+            logger.info("Distribution %s doesn't use custom SSL, skipping" % dist['Id'])
+            continue
+
+        domain = dist['Aliases']['Items'][0]
+        result = check_domain(domain, event.get('buffer_days', 14))
+        results.append(result)
+        logger.debug("Got result %s for domain %s" % (json.dumps(result), domain))
+        if result['cert_status'] != 'OK' and event.get('topic', False):
+            # If cert expires soon and we have a notification topic
+            sns.publish(
+                TopicArn=event['topic'],
+                Message=json.dumps(result)
+            )
     return results
